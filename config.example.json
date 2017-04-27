@@ -1,0 +1,24 @@
+{
+  // Example configuration, parsed with support for comments
+  "ApplicationKey": "YOUR_APP_KEY",
+  "ApplicationSecret": "YOUR_APP_SECRET",
+  "ConsumerKey": "YOUR_CONSUMER_KEY",
+  // identifier for this project ('service')
+  "ProjectId": "YOUR_PROJECT_ID",
+  // identifier for this server
+  "ServerId": "YOUR_SERVER_ID",
+  // OVH API to use, either ovh-eu or ovh-ca
+  "OVHEndpoint": "ovh-eu",
+  // OVH region to use for new volumes, can be GRA3 (Western EU), SBG3 (Central EU), BHS3 (Canada)
+  "DefaultRegion": "GRA3",
+
+  // OPTIONAL:
+  // Volume type, either classic or 'high-speed'
+  "DefaultVolType": "classic",
+  // Default volume size in Gigabytes, 10GB minimum for new volumes
+  "DefaultVolSz": 10,
+  // Location to mount new volumes
+  "MountPoint": "/mnt/cvols",
+  // socket owner, usually 'root' but must be set to 'docker' on CoreOS
+  "SocketGroup": "docker"
+}
