@@ -39,38 +39,9 @@ type Config struct {
 }
 
 type OVHPlugin struct {
-	Client *ovh.Client
 	Mutex  *sync.Mutex
 	Conf   *Config
-}
-
-type Volume struct {
-	Id          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	AttachedTo  []string `json:"attachedTo"`
-	Status      string   `json:"status"`
-}
-
-// POST data used to create a new volume
-type VolumePost struct {
-	Region string `json:"region"` // required
-	Size   int    `json:"size"`   // required, size in GBs
-	Type   string `json:"type"`   // required
-
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	ImageId     string `json:"imageId"`
-	SnapshotId  string `json:"snapshotId"`
-}
-
-// POST data used for volume attaching & detaching
-type VolumeAttachmentPost struct {
-	InstanceId string `json:"instanceId"`
-}
-
-type GenericApiResponse struct {
-	Message string `json:"message"`
+	Client *OVHClient
 }
 
 func processConfig(cfg string) (Config, error) {
@@ -120,7 +91,7 @@ func New(cfgFile string) OVHPlugin {
 		}
 	}
 
-	client, err := ovh.NewClient(conf.OVHEndpoint, conf.ApplicationKey, conf.ApplicationSecret, conf.ConsumerKey)
+	ovhClient, err := ovh.NewClient(conf.OVHEndpoint, conf.ApplicationKey, conf.ApplicationSecret, conf.ConsumerKey)
 	if err != nil {
 		log.Fatalf("Error: %q\n", err)
 	}
@@ -133,7 +104,7 @@ func New(cfgFile string) OVHPlugin {
 	d := OVHPlugin{
 		Conf:   &conf,
 		Mutex:  &sync.Mutex{},
-		Client: client,
+		Client: &OVHClient{ Conf: &conf, Client: ovhClient},
 	}
 	return d
 }
@@ -164,59 +135,31 @@ func (d OVHPlugin) parseOpts(r volume.Request) VolumePost {
 	return opts
 }
 
-func listVolumes(client *ovh.Client, projectId string) (volumes []Volume, error error) {
-	volumes = []Volume{}
-	url := fmt.Sprintf("/cloud/project/%s/volume", projectId)
-	log.Debugf("Retrieving %s", url)
-
-	if err := client.Get(url, &volumes); err != nil {
-		fmt.Printf("Error: %q\n", err)
-		return volumes, errors.New(fmt.Sprintf("Could not retrieve volumes: %s", err.Error()))
-	}
-
-	return
-}
-
-func (d OVHPlugin) getByName(name string) (vol Volume, err error) {
-	vol = Volume{}
-	volumes, err := listVolumes(d.Client, d.Conf.ProjectId)
-	if err != nil {
-		return vol, err
-	}
-
-	for _, element := range volumes {
-		if element.Name == name {
-			return element, nil
-		}
-	}
-
-	return vol, errors.New("Could not find volume " + name)
-}
-
 func (d OVHPlugin) Create(r volume.Request) volume.Response {
 	log.Infof("Create volume %s on OVH", r.Name)
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
-	vol, err := d.getByName(r.Name)
+	vol, err := d.Client.GetVolumeByName(r.Name)
 	if err != nil {
 		log.Errorf("Error while checking if volume %s already exists: %s", vol, err.Error())
 		return volume.Response{Err: fmt.Sprintf("Error while checking if volume %s exists, %s", r.Name, err)}
 	}
 
-	if vol.Status != "available" {
-		return volume.Response{Err: fmt.Sprintf("Volume %s already exists and is not available, state is %s", r.Name, vol.Status)}
-	}
+	// volume does not yet exist
+	if vol.Id == "" {
+		log.Infof("Did not find a volume with name %s, creating a new one", r.Name)
+		createVolumeOptions := d.parseOpts(r)
+		log.Debugf("Creating volume with options: %+v", createVolumeOptions)
 
-	createVolumeOptions := d.parseOpts(r)
-	log.Debugf("Creating volume with options: %+v", createVolumeOptions)
-
-	createUrl := fmt.Sprintf("/cloud/project/%s/volume", d.Conf.ProjectId)
-	log.Debugf("Posting to %s", createUrl)
-	createResponse := Volume{}
-	if err := d.Client.Post(createUrl, createVolumeOptions, &createResponse); err != nil {
-		fmt.Printf("Error: %q\n", err)
-		return volume.Response{Err: fmt.Sprintf("Error while creating volume %s, %s", r.Name, err)}
+		if _, err := d.Client.CreateVolume(createVolumeOptions); err != nil {
+			return volume.Response{Err: fmt.Sprintf("Error while creating volume %s, %s", r.Name, err)}
+		}
+	} else {
+		if vol.Status != "available" {
+			return volume.Response{Err: fmt.Sprintf("Volume %s already exists and is not available, state is %s", r.Name, vol.Status)}
+		}
+		log.Infof("Found an existing volume with name %s, reusing this", r.Name)
 	}
 
 	// create a mount point so we can easily track this volume
@@ -231,24 +174,21 @@ func (d OVHPlugin) Create(r volume.Request) volume.Response {
 
 func (d OVHPlugin) Remove(r volume.Request) volume.Response {
 	log.Info("Remove/Delete Volume: ", r.Name)
-	vol, err := d.getByName(r.Name)
+	vol, err := d.Client.GetVolumeByName(r.Name)
 	log.Debugf("Remove/Delete Volume ID: %s", vol.Id)
 	if err != nil {
 		log.Errorf("Failed to retrieve volume named: ", r.Name, "during Remove operation", err)
 		return volume.Response{Err: err.Error()}
 	}
-
+	if vol.Id == "" {
+		return volume.Response{Err: fmt.Sprintf("Volume with name %s could not be found", r.Name)}
+	}
 	if vol.Status == "attaching" || vol.Status == "in-use" {
 		return volume.Response{Err: fmt.Sprintf("Cannot delete %s while in %s state", r.Name, vol.Status)}
 	}
-
-	deleteUrl := fmt.Sprintf("/cloud/project/%s/volume/%s", d.Conf.ProjectId, vol.Id)
-	deleteResponse := GenericApiResponse{}
-	if err := d.Client.Delete(deleteUrl, &deleteResponse); err != nil {
+	if err := d.Client.DeleteVolume(vol.Id); err != nil {
 		return volume.Response{Err: fmt.Sprintf("Failed to delete %s: %s", r.Name, err.Error())}
 	}
-
-	log.Debugf("Response from Delete: %+v\n", deleteResponse)
 
 	path := filepath.Join(d.Conf.MountPoint, r.Name)
 	if err := os.Remove(path); err != nil {
@@ -271,17 +211,20 @@ func (d OVHPlugin) Mount(r volume.Request) volume.Response {
 
 	hostname, _ := os.Hostname()
 	log.Infof("Mounting volume %+v on %s", r, hostname)
-	vol, err := d.getByName(r.Name)
+	vol, err := d.Client.GetVolumeByName(r.Name)
 	if err != nil {
 		log.Errorf("Failed to retrieve volume named: ", r.Name, "during Mount operation", err)
 		return volume.Response{Err: err.Error()}
+	}
+	if vol.Id == "" {
+		return volume.Response{Err: fmt.Sprintf("Volume with name %s could not be found", r.Name)}
 	}
 	if vol.Status == "creating" {
 		// NOTE(jdg):  This may be a successive call after a create which from
 		// the docker volume api can be quite speedy.  Take a short pause and
 		// check the status again before proceeding
 		time.Sleep(time.Second * 5)
-		vol, err = d.getByName(r.Name)
+		vol, err = d.Client.GetVolumeByName(r.Name)
 	}
 
 	if err != nil {
@@ -296,21 +239,14 @@ func (d OVHPlugin) Mount(r volume.Request) volume.Response {
 		return volume.Response{Err: err.Error()}
 	}
 
-	attachRequest := VolumeAttachmentPost{
-		InstanceId: d.Conf.ServerId,
-	}
-	attachResponse := Volume{}
-	attachUrl := fmt.Sprintf("/cloud/project/%s/volume/%s/detach", d.Conf.ProjectId, vol.Id)
-	log.Debugf("Posting to %s", attachUrl)
-	if err := d.Client.Post(attachUrl, attachRequest, &attachResponse); err != nil {
+	if _, err := d.Client.AttachVolume(vol.Id); err != nil {
 		fmt.Printf("Error: %q\n", err)
 		return volume.Response{Err: err.Error()}
 	}
-	log.Debugf("Received attach response: %s", attachResponse)
 
-	device := "/dev/disk/by-id/virtio-" + vol.Id[0:19]
-	if !waitForPathToExist(device, 60) == false {
-		return volume.Response{Err: fmt.Sprintf("Waited 60 seconds for volume %s, located as device %s to appear but it never did", vol.Id, device)}
+	device := "/dev/disk/by-id/virtio-" + vol.Id[0:20]
+	if !waitForPathToExist(device, 60) {
+		return volume.Response{Err: fmt.Sprintf("Waited 60 seconds for volume %s, as device %s, to appear but it never did", vol.Id, device)}
 	}
 	if GetFSType(device) == "" {
 		//TODO(jdg): Enable selection of *other* fs types
@@ -335,10 +271,14 @@ func (d OVHPlugin) Unmount(r volume.Request) volume.Response {
 	log.Infof("Unmounting volume: %+v", r)
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
-	vol, err := d.getByName(r.Name)
+	vol, err := d.Client.GetVolumeByName(r.Name)
 	if err != nil {
 		log.Errorf("Failed to retrieve volume named: `", r.Name, "` during Unmount operation", err)
 		return volume.Response{Err: err.Error()}
+	}
+	if vol.Id == "" {
+		log.Infof("Volume with name %s could not be found, we're done here", r.Name)
+		return volume.Response{Err: fmt.Sprintf("Volume with name %s could not be found", r.Name)}
 	}
 
 	if umountErr := Umount(d.Conf.MountPoint + "/" + r.Name); umountErr != nil {
@@ -350,17 +290,9 @@ func (d OVHPlugin) Unmount(r volume.Request) volume.Response {
 		}
 	}
 
-	detachRequest := VolumeAttachmentPost{
-		InstanceId: d.Conf.ServerId,
-	}
-	detachResponse := Volume{}
-	attachUrl := fmt.Sprintf("/cloud/project/%s/volume/%s/detach", d.Conf.ProjectId, vol.Id)
-	log.Debugf("Posting to %s", attachUrl)
-	if err := d.Client.Post(attachUrl, detachRequest, &detachResponse); err != nil {
-		fmt.Printf("Error: %q\n", err)
+	if _, err := d.Client.DetachVolume(vol.Id); err != nil {
 		return volume.Response{Err: err.Error()}
 	}
-	log.Debugf("Received detach response: %s", detachResponse)
 
 	return volume.Response{}
 }
@@ -371,10 +303,13 @@ func (d OVHPlugin) Capabilities(r volume.Request) volume.Response {
 
 func (d OVHPlugin) Get(r volume.Request) volume.Response {
 	log.Info("Get volume: ", r.Name)
-	_, err := d.getByName(r.Name)
+	vol, err := d.Client.GetVolumeByName(r.Name)
 	if err != nil {
 		log.Errorf("Failed to retrieve volume `%s`: %s", r.Name, err.Error())
 		return volume.Response{Err: err.Error()}
+	}
+	if vol.Id == "" {
+		return volume.Response{Err: fmt.Sprintf("Volume with name %s could not be found", r.Name)}
 	}
 
 	// NOTE(jdg): Volume can exist but not necessarily be attached, this just
@@ -387,18 +322,14 @@ func (d OVHPlugin) Get(r volume.Request) volume.Response {
 
 func (d OVHPlugin) List(r volume.Request) volume.Response {
 	log.Info("List volumes: ", r.Name)
-
-	volumes, err := listVolumes(d.Client, d.Conf.ProjectId)
+	volumes, err := d.Client.ListVolumes()
 	if err != nil {
-		log.Errorf("Failed to retrieve volumes: %s", err.Error())
 		return volume.Response{Err: err.Error()}
 	}
 
 	var vols []*volume.Volume
-
 	for _, v := range volumes {
 		vols = append(vols, &volume.Volume{Name: v.Name, Mountpoint: filepath.Join(d.Conf.MountPoint, v.Name)})
 	}
-
 	return volume.Response{Volumes: vols}
 }
