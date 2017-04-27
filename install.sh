@@ -8,7 +8,7 @@ set -e
 #  'wget -qO- https://raw.githubusercontent.com/yholkamp/ovh-docker-volume-plugin/master/install.sh | sh'
 
 BIN_NAME=ovh-docker-volume-plugin
-DRIVER_URL="https://github.com/yholkamp/ovh-docker-volume-plugin/releases/download/v0.10/$BIN_NAME"
+DRIVER_URL="https://github.com/yholkamp/ovh-docker-volume-plugin/releases/download/v0.1.0/$BIN_NAME"
 BIN_DIR="/home/core" # Set to /usr/bin for most distributions
 CONFIG_LOCATION="/etc/ovh-docker-config.json"
 
