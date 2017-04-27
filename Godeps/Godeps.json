@@ -1,0 +1,76 @@
+{
+	"ImportPath": "github.com/yholkamp/ovh-docker-volume-plugin",
+	"GoVersion": "go1.8",
+	"GodepVersion": "v79",
+	"Deps": [
+		{
+			"ImportPath": "github.com/Microsoft/go-winio",
+			"Comment": "v0.3.5-2-gce2922f",
+			"Rev": "ce2922f643c8fd76b46cadc7f404a06282678b34"
+		},
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.10.0-21-g32055c3",
+			"Rev": "32055c351ea8b00b96d70f28db48d9840feaf0ec"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-systemd/activation",
+			"Comment": "v10-11-gd403902",
+			"Rev": "d4039021cfc2d0ea21d34afda21631314e83f75a"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-systemd/util",
+			"Comment": "v10-11-gd403902",
+			"Rev": "d4039021cfc2d0ea21d34afda21631314e83f75a"
+		},
+		{
+			"ImportPath": "github.com/coreos/pkg/dlopen",
+			"Comment": "v2-10-ga48e304",
+			"Rev": "a48e304ff9331be6d5df352b6b47bd1395ab5dd7"
+		},
+		{
+			"ImportPath": "github.com/docker/go-connections/sockets",
+			"Comment": "v0.2.1",
+			"Rev": "990a1a1a70b0da4c4cb70e117971a4f0babfbf1a"
+		},
+		{
+			"ImportPath": "github.com/docker/go-plugins-helpers/sdk",
+			"Rev": "dd9c6831a796ea025dfae8448d6a34d081b99898"
+		},
+		{
+			"ImportPath": "github.com/docker/go-plugins-helpers/volume",
+			"Rev": "dd9c6831a796ea025dfae8448d6a34d081b99898"
+		},
+		{
+			"ImportPath": "github.com/opencontainers/runc/libcontainer/user",
+			"Comment": "v1.0.0-rc1-61-gec01ae5",
+			"Rev": "ec01ae5f10516ac73eafb41456365a06f0e21065"
+		},
+		{
+			"ImportPath": "github.com/ovh/go-ovh/ovh",
+			"Rev": "d2207178e10e4527e8f222fd8707982df8c3af17"
+		},
+		{
+			"ImportPath": "github.com/yosuke-furukawa/json5/encoding/json5",
+			"Comment": "v0.1.1-5-g07fdad7",
+			"Rev": "07fdad7a3c55f2098b172ea58890470c07f7d392"
+		},
+		{
+			"ImportPath": "golang.org/x/net/proxy",
+			"Rev": "a728288923b47049b2ce791836767ffbe964a5bd"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "b518c298ac9dc94b6ac0757394f50d10c5dfa25a"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/windows",
+			"Rev": "b518c298ac9dc94b6ac0757394f50d10c5dfa25a"
+		},
+		{
+			"ImportPath": "gopkg.in/ini.v1",
+			"Comment": "v1.27.0",
+			"Rev": "e7fea39b01aea8d5671f6858f0532f56e8bff3a5"
+		}
+	]
+}
