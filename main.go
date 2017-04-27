@@ -1,11 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"flag"
-	"os"
 	"github.com/docker/go-plugins-helpers/volume"
+	"os"
 )
 
 const (

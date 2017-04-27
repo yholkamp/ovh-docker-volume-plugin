@@ -17,25 +17,25 @@ import (
 )
 
 const (
-	VOLUME_TYPE_CLASSIC = "classic"
+	VOLUME_TYPE_CLASSIC    = "classic"
 	VOLUME_TYPE_HIGH_SPEED = "high-speed"
 )
 
 type Config struct {
-	SocketGroup    		string //User group to use for the plugin socket
-	DefaultVolSz		int
-	DefaultVolType		string
-	DefaultRegion		string
+	SocketGroup    string //User group to use for the plugin socket
+	DefaultVolSz   int
+	DefaultVolType string
+	DefaultRegion  string
 
-	MountPoint			string
-	ProjectId			string
-	ServerId			string
+	MountPoint string
+	ProjectId  string
+	ServerId   string
 
 	// OVH API settings
-	ApplicationKey		string
-	ApplicationSecret	string
-	ConsumerKey			string
-	OVHEndpoint			string
+	ApplicationKey    string
+	ApplicationSecret string
+	ConsumerKey       string
+	OVHEndpoint       string
 }
 
 type OVHPlugin struct {
@@ -45,23 +45,23 @@ type OVHPlugin struct {
 }
 
 type Volume struct {
-	Id string `json:"id"`
-	Name string `json:"name"`
-	Description string `json:"description"`
-	AttachedTo []string `json:"attachedTo"`
-	Status string `json:"status"`
+	Id          string   `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	AttachedTo  []string `json:"attachedTo"`
+	Status      string   `json:"status"`
 }
 
 // POST data used to create a new volume
 type VolumePost struct {
 	Region string `json:"region"` // required
-	Size int `json:"size"` 	      // required, size in GBs
-	Type string `json:"type"`     // required
+	Size   int    `json:"size"`   // required, size in GBs
+	Type   string `json:"type"`   // required
 
-	Name string `json:"name"`
+	Name        string `json:"name"`
 	Description string `json:"description"`
-	ImageId string `json:"imageId"`
-	SnapshotId string `json:"snapshotId"`
+	ImageId     string `json:"imageId"`
+	SnapshotId  string `json:"snapshotId"`
 }
 
 // POST data used for volume attaching & detaching
@@ -141,10 +141,10 @@ func New(cfgFile string) OVHPlugin {
 // Parses the user provided volume creation options and creates an OVH API object
 func (d OVHPlugin) parseOpts(r volume.Request) VolumePost {
 	opts := VolumePost{
-		Type: d.Conf.DefaultVolType,
-		Size: d.Conf.DefaultVolSz,
-		Region: d.Conf.DefaultRegion,
-		Name: r.Name,
+		Type:        d.Conf.DefaultVolType,
+		Size:        d.Conf.DefaultVolSz,
+		Region:      d.Conf.DefaultRegion,
+		Name:        r.Name,
 		Description: "Docker volume.",
 	}
 	for k, v := range r.Options {
@@ -164,7 +164,6 @@ func (d OVHPlugin) parseOpts(r volume.Request) VolumePost {
 	return opts
 }
 
-
 func listVolumes(client *ovh.Client, projectId string) (volumes []Volume, error error) {
 	volumes = []Volume{}
 	url := fmt.Sprintf("/cloud/project/%s/volume", projectId)
@@ -177,7 +176,6 @@ func listVolumes(client *ovh.Client, projectId string) (volumes []Volume, error 
 
 	return
 }
-
 
 func (d OVHPlugin) getByName(name string) (vol Volume, err error) {
 	vol = Volume{}

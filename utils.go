@@ -79,4 +79,3 @@ func Umount(mountpoint string) error {
 	}
 	return err
 }
-
