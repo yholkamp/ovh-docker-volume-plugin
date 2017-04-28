@@ -8,8 +8,8 @@ set -e
 #  'wget -qO- https://raw.githubusercontent.com/yholkamp/ovh-docker-volume-plugin/master/install.sh | sh'
 
 BIN_NAME=ovh-docker-volume-plugin
-DRIVER_URL="https://github.com/yholkamp/ovh-docker-volume-plugin/releases/download/v0.10/$BIN_NAME"
-BIN_DIR="/home/core" # Set to /usr/bin for most distributions
+DRIVER_URL="https://github.com/yholkamp/ovh-docker-volume-plugin/releases/download/v0.1.1/$BIN_NAME"
+BIN_DIR="/usr/bin" # Set to /usr/bin for most distributions, change to another directory on CoreOS
 CONFIG_LOCATION="/etc/ovh-docker-config.json"
 
 do_install() {

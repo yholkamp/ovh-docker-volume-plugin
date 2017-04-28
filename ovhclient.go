@@ -9,7 +9,7 @@ import (
 
 type OVHClient struct {
 	Client *ovh.Client
-	Conf *Config
+	Conf   *Config
 }
 
 type Volume struct {

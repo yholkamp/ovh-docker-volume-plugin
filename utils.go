@@ -3,26 +3,28 @@ package main
 import (
 	"errors"
 	log "github.com/Sirupsen/logrus"
-	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
 
-func waitForPathToExist(fileName string, numTries int) bool {
-	log.Info("Waiting for path")
+func waitForPathToExist(fileName string, numTries int) string {
+	log.Infof("Waiting for path %s", fileName)
 	for i := 0; i < numTries; i++ {
-		_, err := os.Stat(fileName)
-		if err == nil {
-			log.Debug("path found: ", fileName)
-			return true
+		matches, err := filepath.Glob(fileName)
+
+		if err != nil {
+			log.Errorf("Received error from os.Glob: %s", err)
+			return ""
 		}
-		if err != nil && !os.IsNotExist(err) {
-			return false
+
+		if matches != nil {
+			return matches[0]
 		}
 		time.Sleep(time.Second)
 	}
-	return false
+	return ""
 }
 
 func GetFSType(device string) string {

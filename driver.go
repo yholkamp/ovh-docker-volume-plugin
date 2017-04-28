@@ -104,7 +104,7 @@ func New(cfgFile string) OVHPlugin {
 	d := OVHPlugin{
 		Conf:   &conf,
 		Mutex:  &sync.Mutex{},
-		Client: &OVHClient{ Conf: &conf, Client: ovhClient},
+		Client: &OVHClient{Conf: &conf, Client: ovhClient},
 	}
 	return d
 }
@@ -234,8 +234,9 @@ func (d OVHPlugin) Mount(r volume.Request) volume.Response {
 
 	if vol.Status != "available" {
 		log.Debugf("Volume info: %+v\n", vol)
-		log.Errorf("Invalid volume status for Mount request, volume is: %s but must be available", vol.Status)
-		err := errors.New("Invalid volume status for Mount request")
+		errMsg := fmt.Sprintf("Invalid volume status for mount request, volume is: %s but must be available", vol.Status)
+		log.Error(errMsg)
+		err := errors.New(errMsg)
 		return volume.Response{Err: err.Error()}
 	}
 
@@ -244,8 +245,9 @@ func (d OVHPlugin) Mount(r volume.Request) volume.Response {
 		return volume.Response{Err: err.Error()}
 	}
 
-	device := "/dev/disk/by-id/virtio-" + vol.Id[0:20]
-	if !waitForPathToExist(device, 60) {
+	fileName := "/dev/disk/by-id/*" + vol.Id[0:20]
+	var device string
+	if device = waitForPathToExist(fileName, 60); device == "" {
 		return volume.Response{Err: fmt.Sprintf("Waited 60 seconds for volume %s, as device %s, to appear but it never did", vol.Id, device)}
 	}
 	if GetFSType(device) == "" {

@@ -1,12 +1,11 @@
 # OVH Docker Volume Plugin
 
 Docker volume plugin that supports the 'Additional Disks' / volumes offered by OVH as part of their public cloud offerings.
-While OVH uses OpenStack and their additional disks are essentially OpenStack Cinder block storage volumes, their volumes are not accessible over iSCSI.
+Depending on the operating system used on OVH, the volumes may be available over iSCSI or RBD but can always be mounted using the OVH API.
  
-To get around this, I've modified [j-griffith's Cinder docker driver](https://github.com/j-griffith/cinder-docker-driver) 
-to use the OVH API, rather than their OpenStack API, to natively mount these volumes without iSCSI usage. 
+To provide a cross-distribution plugin for OVH, I've created this driver after working with [j-griffith's Cinder docker driver](https://github.com/j-griffith/cinder-docker-driver), which relies on iSCSI access.
 
-## Limitations:
+### Limitations:
 
 * Volumes have to be at least 10GB in size when created using the OVH API, while the minimum when using the OpenStack API is 1GB.
 
@@ -14,8 +13,9 @@ to use the OVH API, rather than their OpenStack API, to natively mount these vol
 
 * Generate a new token [using this link](https://api.ovh.com/createToken/?GET=/cloud/project/*/volume*&POST=/cloud/project/*/volume*&GET=/cloud/project/*/instance&DELETE=/cloud/project/*/volume/*), this will:
     * grant GET & POST access to the volume APIs, allowing us to create volumes & attach them to servers,
-    * grant DELETE access to the volume API, allowing us to delete volumes,
-    * grant GET access to the instances in your project, allowing the plugin to determine the id of the server. 
+    * Optional: grant GET access to the instances in your project, allowing the plugin to determine the id of the server.
+    * Optional: grant DELETE access to the volume API, allowing us to delete volumes,
+    * Note that when your token expires, you will have to update your configuration file, so pick a suitable expiration period.
 * Create your own `ovh-docker-config.json` file using `config.example.json` as template.
 
 ## Pre-built installation
@@ -39,7 +39,7 @@ Create a new volume:
     
 Interactively connect with a volume:
     
-    $ docker run -v myVolume:/Data --volume-driver=ovh -i -t ubuntu /bin/bash
+    $ docker run -v myVolume:/Data --volume-driver=ovh -i -t bash
 
 Attach a volume to a Docker Swarm mode Service:
 
