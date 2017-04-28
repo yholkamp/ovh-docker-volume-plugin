@@ -47,5 +47,4 @@ Attach a volume to a Docker Swarm mode Service:
 
 # TODO
 
-* Find the server ID using the ip address & OVH API, rather than manually specifying
 * Implement the v2 plugin API, which returns a relative path rather than an absolute one
