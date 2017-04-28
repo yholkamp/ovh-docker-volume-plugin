@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	log "github.com/Sirupsen/logrus"
+	"net"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -80,4 +81,27 @@ func Umount(mountpoint string) error {
 		}
 	}
 	return err
+}
+
+func getIpAddresses() (ips []string, error error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	for _, i := range interfaces {
+		addrs, err := i.Addrs()
+		if err != nil {
+			return nil, err
+		}
+		for _, addr := range addrs {
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ips = append(ips, v.IP.String())
+			case *net.IPAddr:
+				ips = append(ips, v.IP.String())
+			}
+		}
+	}
+
+	return ips, nil
 }

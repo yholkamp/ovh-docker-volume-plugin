@@ -41,6 +41,26 @@ type GenericApiResponse struct {
 	Message string `json:"message"`
 }
 
+type Instance struct {
+	Status      string       `json:"status"`
+	Region      string       `json:"region"`
+	Name        string       `json:"name"`
+	ImageId     string       `json:"imageId"`
+	Created     string       `json:"created"`
+	FlavorId    string       `json:"flavorId"`
+	SshKeyId    string       `json:"sshKeyId"`
+	Id          string       `json:"id"`
+	IpAddresses []InstanceIp `json:"ipAddresses"`
+}
+
+type InstanceIp struct {
+	GatewayIp string `json:"gatewayIp"`
+	NetworkId string `json:"networkId"`
+	Version   int    `json:"version"`
+	Ip        string `json:"ip"`
+	Type      string `json:"type"`
+}
+
 func (oc OVHClient) ListVolumes() (volumes []Volume, error error) {
 	volumes = []Volume{}
 	url := fmt.Sprintf("/cloud/project/%s/volume", oc.Conf.ProjectId)
@@ -116,7 +136,6 @@ func (oc OVHClient) DetachVolume(volumeId string) (volume Volume, err error) {
 	detachRequest := VolumeAttachmentPost{
 		InstanceId: oc.Conf.ServerId,
 	}
-	//volume = Volume{}
 	detachUrl := fmt.Sprintf("/cloud/project/%s/volume/%s/detach", oc.Conf.ProjectId, volumeId)
 	log.Debugf("Sending POST to %s", detachUrl)
 	if err = oc.Client.Post(detachUrl, detachRequest, &volume); err != nil {
@@ -126,4 +145,43 @@ func (oc OVHClient) DetachVolume(volumeId string) (volume Volume, err error) {
 	log.Debugf("Received detach response: %s", volume)
 
 	return
+}
+
+func (oc OVHClient) ListInstances() (instances []Instance, error error) {
+	url := fmt.Sprintf("/cloud/project/%s/instance", oc.Conf.ProjectId)
+	log.Debugf("GET for %s", url)
+	if err := oc.Client.Get(url, &instances); err != nil {
+		fmt.Printf("Error: %q", err)
+		return instances, errors.New(fmt.Sprintf("Could not retrieve instances: %s", err.Error()))
+	}
+
+	return
+}
+
+func (oc OVHClient) GetInstanceByIps(ips []string) (instance Instance, error error) {
+	instances, err := oc.ListInstances()
+	if err != nil {
+		log.Errorf("Could not get instances: %s", err)
+		return instance, err
+	}
+	// loop over all instances, ip addresses and see if there's any overlap
+	for _, i := range instances {
+		log.Debugf("Checking instance %s's ips against %s", i.Name, ips)
+		for _, ipAddress := range i.IpAddresses {
+			if contains(ips, ipAddress.Ip) {
+				return i, nil
+			}
+		}
+	}
+	return
+}
+
+// checks if s contains e
+func contains(xs []string, e string) bool {
+	for _, x := range xs {
+		if x == e {
+			return true
+		}
+	}
+	return false
 }

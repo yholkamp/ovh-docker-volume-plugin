@@ -95,17 +95,30 @@ func New(cfgFile string) OVHPlugin {
 	if err != nil {
 		log.Fatalf("Error: %q\n", err)
 	}
+	ovhWrapper := OVHClient{Conf: &conf, Client: ovhClient}
 
 	if conf.ServerId == "" {
-		log.Error("No ServerId configured")
-		// TODO: look up the server id using the API
+		log.Debug("No ServerId configured")
+		ips, err := getIpAddresses()
+		if err != nil {
+			log.Fatalf("No server id defined and could not find ip addresses for this server: %s", err)
+		} else {
+			instance, err := ovhWrapper.GetInstanceByIps(ips)
+			if err != nil {
+				log.Fatalf("Could not find the instance matching this server's IP: %s", err.Error())
+			} else {
+				log.Infof("Set ServerId to %s based on server ip", instance.Id)
+				conf.ServerId = instance.Id
+			}
+		}
 	}
 
 	d := OVHPlugin{
 		Conf:   &conf,
 		Mutex:  &sync.Mutex{},
-		Client: &OVHClient{Conf: &conf, Client: ovhClient},
+		Client: &ovhWrapper,
 	}
+	log.Debug("Finished driver initialization")
 	return d
 }
 

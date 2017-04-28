@@ -8,9 +8,6 @@
   // identifier for this project ('service')
   "ProjectId": "YOUR_PROJECT_ID",
 
-  // identifier for this server
-  "ServerId": "YOUR_SERVER_ID",
-
   // OVH API to use, either ovh-eu or ovh-ca
   "OVHEndpoint": "ovh-eu",
 
@@ -28,5 +25,8 @@
   "MountPoint": "/mnt/cvols",
 
   // OPTIONAL: socket owner, usually 'root' but must be set to 'docker' on CoreOS
-  "SocketGroup": "docker"
+  "SocketGroup": "docker",
+
+  // OPTIONAL: identifier for this server, leave empty to determine the serverId based on the IP addresses
+  "ServerId": "YOUR_SERVER_ID"
 }
