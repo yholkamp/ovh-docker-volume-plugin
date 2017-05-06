@@ -168,12 +168,10 @@ func (d OVHPlugin) Create(r volume.Request) volume.Response {
 		if _, err := d.Client.CreateVolume(createVolumeOptions); err != nil {
 			return volume.Response{Err: fmt.Sprintf("Error while creating volume %s, %s", r.Name, err)}
 		}
-	} else {
-		if vol.Status != "available" {
-			return volume.Response{Err: fmt.Sprintf("Volume %s already exists and is not available, state is %s", r.Name, vol.Status)}
-		}
-		log.Infof("Found an existing volume with name %s, reusing this", r.Name)
+	} else if vol.Status != "available" && !contains(vol.AttachedTo, d.Conf.ServerId) {
+		return volume.Response{Err: fmt.Sprintf("Volume %s already exists and is not available, state is %s", r.Name, vol.Status)}
 	}
+	log.Infof("Found an existing volume with name %s, reusing this", r.Name)
 
 	// create a mount point so we can easily track this volume
 	path := filepath.Join(d.Conf.MountPoint, r.Name)
@@ -245,7 +243,11 @@ func (d OVHPlugin) Mount(r volume.Request) volume.Response {
 		return volume.Response{Err: err.Error()}
 	}
 
-	if vol.Status != "available" {
+	volumeIsAttachedToServer := contains(vol.AttachedTo, d.Conf.ServerId)
+	if (vol.Status == "in-use" || vol.Status == "attaching") && volumeIsAttachedToServer {
+		// disk is already attached, we can skip the pleasantries
+		log.Infof("Disk %s is already attached to %s", vol.Id, d.Conf.ServerId)
+	} else if vol.Status != "available" {
 		log.Debugf("Volume info: %+v\n", vol)
 		errMsg := fmt.Sprintf("Invalid volume status for mount request, volume is: %s but must be available", vol.Status)
 		log.Error(errMsg)
@@ -253,9 +255,12 @@ func (d OVHPlugin) Mount(r volume.Request) volume.Response {
 		return volume.Response{Err: err.Error()}
 	}
 
-	if _, err := d.Client.AttachVolume(vol.Id); err != nil {
-		fmt.Printf("Error: %q\n", err)
-		return volume.Response{Err: err.Error()}
+	// only if the volume is not yet attached, attach it
+	if !volumeIsAttachedToServer {
+		if _, err := d.Client.AttachVolume(vol.Id); err != nil {
+			fmt.Printf("Error: %q\n", err)
+			return volume.Response{Err: err.Error()}
+		}
 	}
 
 	fileName := "/dev/disk/by-id/*" + vol.Id[0:20]
@@ -273,7 +278,13 @@ func (d OVHPlugin) Mount(r volume.Request) volume.Response {
 			return volume.Response{Err: err.Error()}
 		}
 	}
-	if mountErr := Mount(device, d.Conf.MountPoint+"/"+r.Name); mountErr != nil {
+	// check if the drive is already present
+	if volumeIsAttachedToServer && waitForPathToExist(d.Conf.MountPoint+"/"+r.Name, 1) != "" {
+		log.Infof("Volume already mounted")
+		return volume.Response{Mountpoint: d.Conf.MountPoint + "/" + r.Name}
+
+		// mount the disk
+	} else if mountErr := Mount(device, d.Conf.MountPoint+"/"+r.Name); mountErr != nil {
 		err := errors.New("Problem mounting docker volume: " + mountErr.Error())
 		log.Error(err)
 		return volume.Response{Err: err.Error()}
